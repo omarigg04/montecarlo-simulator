@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulación Monte Carlo - Camino Aleatorio</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .controls {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .control-group {
+            display: inline-block;
+            margin: 10px 15px;
+            vertical-align: top;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input, button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            margin: 2px;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .reset-btn {
+            background: #f44336;
+        }
+        
+        .reset-btn:hover {
+            background: #da190b;
+        }
+        
+        .canvas-container {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        canvas {
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 5px;
+            background: #000;
+        }
+        
+        .stats {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .stats h3 {
+            margin-top: 0;
+            border-bottom: 2px solid rgba(255,255,255,0.3);
+            padding-bottom: 10px;
+        }
+        
+        .stat-item {
+            display: inline-block;
+            margin: 10px 20px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            display: block;
+            color: #4CAF50;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎲 Simulación Monte Carlo - Camino Aleatorio</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="particleCount">Número de Partículas:</label>
+                <input type="number" id="particleCount" value="100" min="1" max="1000">
+            </div>
+            
+            <div class="control-group">
+                <label for="stepSize">Tamaño del Paso:</label>
+                <input type="number" id="stepSize" value="2" min="1" max="10">
+            </div>
+            
+            <div class="control-group">
+                <label for="speed">Velocidad:</label>
+                <input type="range" id="speed" value="50" min="1" max="100">
+            </div>
+            
+            <div class="control-group">
+                <label for="maxSteps">Pasos Máximos:</label>
+                <input type="number" id="maxSteps" value="1000" min="100" max="5000">
+            </div>
+            
+            <div class="control-group">
+                <button id="startBtn">Iniciar Simulación</button>
+                <button id="pauseBtn" disabled>Pausar</button>
+                <button id="resetBtn" class="reset-btn">Reiniciar</button>
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="canvas" width="800" height="600"></canvas>
+        </div>
+        
+        <div class="stats">
+            <h3>📊 Estadísticas en Tiempo Real</h3>
+            <div class="stat-item">
+                <span class="stat-value" id="currentStep">0</span>
+                <span class="stat-label">Pasos Actuales</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="avgDistance">0.0</span>
+                <span class="stat-label">Distancia Promedio del Origen</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="maxDistance">0.0</span>
+                <span class="stat-label">Distancia Máxima</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="activeParticles">0</span>
+                <span class="stat-label">Partículas Activas</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="theoreticalRMS">0.0</span>
+                <span class="stat-label">RMS Teórico (√n)</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let animationId = null;
+        let currentStep = 0;
+        let isRunning = false;
+        
+        // Elementos del DOM
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const particleCountInput = document.getElementById('particleCount');
+        const stepSizeInput = document.getElementById('stepSize');
+        const speedInput = document.getElementById('speed');
+        const maxStepsInput = document.getElementById('maxSteps');
+        
+        // Elementos de estadísticas
+        const currentStepSpan = document.getElementById('currentStep');
+        const avgDistanceSpan = document.getElementById('avgDistance');
+        const maxDistanceSpan = document.getElementById('maxDistance');
+        const activeParticlesSpan = document.getElementById('activeParticles');
+        const theoreticalRMSSpan = document.getElementById('theoreticalRMS');
+        
+        // Clase Particle
+        class Particle {
+            constructor(x, y) {
+                this.startX = x;
+                this.startY = y;
+                this.x = x;
+                this.y = y;
+                this.path = [{x: x, y: y}];
+                this.color = `hsl(${Math.random() * 360}, 70%, 60%)`;
+                this.active = true;
+            }
+            
+            move(stepSize) {
+                if (!this.active) return;
+                
+                const angle = Math.random() * 2 * Math.PI;
+                this.x += Math.cos(angle) * stepSize;
+                this.y += Math.sin(angle) * stepSize;
+                this.path.push({x: this.x, y: this.y});
+                
+                // Verificar límites del canvas
+                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+                    this.active = false;
+                }
+            }
+            
+            getDistanceFromOrigin() {
+                const dx = this.x - this.startX;
+                const dy = this.y - this.startY;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+            
+            draw() {
+                // Dibujar camino
+                if (this.path.length > 1) {
+                    ctx.strokeStyle = this.color + '40';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(this.path[0].x, this.path[0].y);
+                    for (let i = 1; i < this.path.length; i++) {
+                        ctx.lineTo(this.path[i].x, this.path[i].y);
+                    }
+                    ctx.stroke();
+                }
+                
+                // Dibujar partícula actual
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.active ? 3 : 2, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Marcar punto de inicio
+                if (currentStep === 0) {
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.arc(this.startX, this.startY, 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        function initializeParticles() {
+            particles = [];
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const count = parseInt(particleCountInput.value);
+            
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(centerX, centerY));
+            }
+        }
+        
+        function updateSimulation() {
+            const stepSize = parseInt(stepSizeInput.value);
+            const maxSteps = parseInt(maxStepsInput.value);
+            
+            if (currentStep >= maxSteps) {
+                stopSimulation();
+                return;
+            }
+            
+            // Mover partículas
+            particles.forEach(particle => particle.move(stepSize));
+            currentStep++;
+            
+            // Actualizar estadísticas
+            updateStats();
+            
+            // Dibujar
+            draw();
+            
+            // Continuar animación
+            if (isRunning) {
+                const speed = parseInt(speedInput.value);
+                setTimeout(() => {
+                    animationId = requestAnimationFrame(updateSimulation);
+                }, 101 - speed);
+            }
+        }
+        
+        function updateStats() {
+            const activeParticles = particles.filter(p => p.active);
+            const distances = activeParticles.map(p => p.getDistanceFromOrigin());
+            
+            currentStepSpan.textContent = currentStep;
+            activeParticlesSpan.textContent = activeParticles.length;
+            
+            if (distances.length > 0) {
+                const avgDistance = distances.reduce((a, b) => a + b, 0) / distances.length;
+                const maxDistance = Math.max(...distances);
+                const theoreticalRMS = Math.sqrt(currentStep) * parseInt(stepSizeInput.value);
+                
+                avgDistanceSpan.textContent = avgDistance.toFixed(1);
+                maxDistanceSpan.textContent = maxDistance.toFixed(1);
+                theoreticalRMSSpan.textContent = theoreticalRMS.toFixed(1);
+            }
+        }
+        
+        function draw() {
+            // Limpiar canvas
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Dibujar centro
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Dibujar partículas
+            particles.forEach(particle => particle.draw());
+        }
+        
+        function startSimulation() {
+            if (particles.length === 0) {
+                initializeParticles();
+            }
+            
+            isRunning = true;
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+            updateSimulation();
+        }
+        
+        function pauseSimulation() {
+            isRunning = false;
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+        }
+        
+        function stopSimulation() {
+            isRunning = false;
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+        }
+        
+        function resetSimulation() {
+            stopSimulation();
+            particles = [];
+            currentStep = 0;
+            
+            // Limpiar canvas
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Resetear estadísticas
+            currentStepSpan.textContent = '0';
+            avgDistanceSpan.textContent = '0.0';
+            maxDistanceSpan.textContent = '0.0';
+            activeParticlesSpan.textContent = '0';
+            theoreticalRMSSpan.textContent = '0.0';
+            
+            // Dibujar centro
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        
+        // Event listeners
+        startBtn.addEventListener('click', startSimulation);
+        pauseBtn.addEventListener('click', pauseSimulation);
+        resetBtn.addEventListener('click', resetSimulation);
+        
+        // Inicialización
+        resetSimulation();
+    </script>
+</body>
+</html>

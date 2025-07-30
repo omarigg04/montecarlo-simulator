@@ -1,0 +1,40 @@
+name: monte_carlo_app
+description: Aplicación interactiva de simulaciones Monte Carlo con gráficas en tiempo real
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI y gráficas
+  fl_chart: ^0.68.0
+  cupertino_icons: ^1.0.2
+  
+  # Matemáticas y estadísticas
+  vector_math: ^2.1.4
+  
+  # Gestión de estado
+  provider: ^6.1.1
+  
+  # Utilidades
+  intl: ^0.19.0
+  path_provider: ^2.1.1
+  
+  # Exportación de datos
+  csv: ^5.1.1
+  share_plus: ^7.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
